@@ -1,13 +1,14 @@
 from auth import login_page, register_page, logout
+import streamlit as st
 
-
-
-# Handle Authentication
-query_params = st.experimental_get_query_params()
+# Handle authentication state
+query_params = st.query_params()
 current_page = query_params.get("page", ["login"])[0]
+
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-    st.session_state.username = ""
+    st.session_state.email = ""
+
 if not st.session_state.logged_in:
     if current_page == "register":
         register_page()
@@ -15,10 +16,7 @@ if not st.session_state.logged_in:
         login_page()
     st.stop()
 
-# Logout button
-st.sidebar.button("Logout", on_click=logout)
-
-# Set background image function
+# Set background (same as your original)
 def set_background(image_url):
     st.markdown(
         f"""
@@ -32,5 +30,7 @@ def set_background(image_url):
         unsafe_allow_html=True
     )
 
-# Set background for the main page
 set_background("https://img.freepik.com/free-photo/veggie-quinoa-bowl-cooking-recipe_53876-110662.jpg?semt=ais_hybrid")
+
+# Logout button
+st.sidebar.button("Logout", on_click=logout)
