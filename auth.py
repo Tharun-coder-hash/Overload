@@ -1,18 +1,12 @@
 import streamlit as st
-import json
-import os
+import firebase_admin
+from firebase_admin import credentials, auth
+from firebase_admin.exceptions import FirebaseError
 
-def load_users():
-    USERS_FILE = "users.json"
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_users(users):
-    USERS_FILE = "users.json"
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
+# Initialize Firebase
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase-key.json")
+    firebase_admin.initialize_app(cred)
 
 def set_background(image_url):
     st.markdown(
@@ -30,41 +24,66 @@ def set_background(image_url):
 def login_page():
     set_background("https://thumbs.dreamstime.com/b/yellow-toy-jeep-wrangler-driving-miniature-sandy-beach-rocks-tropical-plants-against-vibrant-background-navigating-351974004.jpg")
     st.title("OVERLOAD VEHICLE DETECTION")
-    st.title("Login Page")
-    username = st.text_input("Username")
+    st.subheader("Login Page")
+    
+    email = st.text_input("Email")
     password = st.text_input("Password", type="password")
-    users = load_users()
+    
     if st.button("Login"):
-        if username in users and users[username] == password:
+        # Input validation
+        if not email or "@" not in email:
+            st.warning("⚠️ Please enter a valid email address")
+            return
+        if len(password) < 6:
+            st.warning("⚠️ Password must be at least 6 characters")
+            return
+            
+        try:
+            user = auth.get_user_by_email(email)
             st.session_state.logged_in = True
-            st.session_state.username = username
-            st.experimental_set_query_params(page="main")
+            st.session_state.email = email
+            st.query_params.update({"page": "main"})
             st.rerun()
-        else:
-            st.error("Invalid username or password")
-    if st.button("Go to Register"):
-        st.experimental_set_query_params(page="register")
-        st.rerun()
+            
+        except FirebaseError as e:
+            error_msg = str(e).lower()
+            if "user not found" in error_msg:
+                st.error("❌ Email not registered. Please register first.")
+            elif "invalid password" in error_msg:
+                st.error("❌ Incorrect password. Please try again.")
+            else:
+                st.error(f"🔒 Login failed: {str(e)}")
 
 def register_page():
     set_background("https://t3.ftcdn.net/jpg/11/33/22/60/360_F_1133226095_xzpWz9qzrDS0oS6yLQGIyipeweNB9i8J.jpg")
     st.title("Register Page")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    users = load_users()
+    
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    
     if st.button("Register"):
-        if new_username in users:
-            st.error("Username already exists!")
-        else:
-            users[new_username] = new_password
-            save_users(users)
-            st.success("Registration successful! Please login.")
-    if st.button("Back to Login"):
-        st.experimental_set_query_params(page="login")
-        st.rerun()
+        # Input validation
+        if not email or "@" not in email:
+            st.warning("⚠️ Please enter a valid email address")
+            return
+        if len(password) < 6:
+            st.warning("⚠️ Password must be at least 6 characters")
+            return
+            
+        try:
+            auth.create_user(email=email, password=password)
+            st.success("✅ Registration successful! Please login.")
+            st.query_params.update({"page": "login"})
+            st.rerun()
+            
+        except FirebaseError as e:
+            error_msg = str(e).lower()
+            if "email already exists" in error_msg:
+                st.error("❌ Email already registered. Please login instead.")
+            else:
+                st.error(f"🚫 Registration failed: {str(e)}")
 
 def logout():
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-    st.experimental_set_query_params(page="login")
+    st.session_state.clear()
+    st.query_params.update({"page": "login"})
     st.rerun()
